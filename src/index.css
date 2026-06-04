@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-aqua-primary: #00AEEF;
+  --color-aqua-secondary: #007BFF;
+  --color-aqua-accent: #00E5C4;
+  --color-aqua-bg: #020B1C;
+  --color-aqua-card: #071426;
+  --color-aqua-line: #1A2B42;
+  --color-aqua-text: #FFFFFF;
+  --color-aqua-muted: #6B7280;
+}
+
+@layer base {
+  body {
+    @apply bg-aqua-bg text-aqua-text font-sans selection:bg-aqua-primary selection:text-white;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-aqua-card/40 backdrop-blur-xl border border-white/10 rounded-2xl;
+  }
+  
+  .neon-glow {
+    @apply shadow-[0_0_20px_rgba(0,174,239,0.3)];
+  }
+
+  .aqua-gradient {
+    @apply bg-gradient-to-r from-aqua-primary to-aqua-secondary;
+  }
+}
+

@@ -1,0 +1,105 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 64 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validations ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'photoURL', 'role', 'createdAt']) &&
+             data.keys().size() == 6 &&
+             data.uid is string && data.uid.size() <= 128 &&
+             data.email is string && data.email.size() <= 256 &&
+             data.displayName is string && data.displayName.size() <= 128 &&
+             data.photoURL is string && data.photoURL.size() <= 1024 &&
+             data.role in ['viewer', 'editor', 'admin'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidJob(data) {
+      return data.keys().hasAll(['jobId', 'userId', 'status', 'description', 'createdAt', 'updatedAt']) &&
+             (data.keys().size() == 6 || (data.keys().size() == 7 && data.keys().hasAll(['filePath']) && data.filePath is string && data.filePath.size() <= 1024)) &&
+             data.jobId is string && data.jobId.size() <= 64 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.status in ['pending', 'processing', 'completed', 'failed'] &&
+             data.description is string && data.description.size() <= 500 &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    // --- Collections ---
+
+    match /users/{uid} {
+      allow get: if isOwner(uid);
+      allow create: if isOwner(uid) && 
+                      isValidUser(incoming()) && 
+                      incoming().role == 'viewer' &&
+                      incoming().createdAt == request.time;
+      allow update: if isOwner(uid) && 
+                      isValidUser(incoming()) &&
+                      incoming().role == existing().role &&
+                      incoming().uid == existing().uid &&
+                      incoming().createdAt == existing().createdAt &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL']);
+    }
+
+    match /jobs/{jobId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() && 
+                      isValidJob(incoming()) &&
+                      incoming().userId == request.auth.uid &&
+                      incoming().status in ['pending', 'processing', 'completed'] &&
+                      incoming().createdAt == request.time &&
+                      incoming().updatedAt == request.time &&
+                      isValidId(jobId);
+                      
+      allow update: if isSignedIn() && 
+                      isValidJob(incoming()) &&
+                      existing().userId == request.auth.uid &&
+                      incoming().userId == existing().userId &&
+                      incoming().createdAt == existing().createdAt &&
+                      incoming().updatedAt == request.time &&
+                      (
+                        // User can update description
+                        incoming().diff(existing()).affectedKeys().hasOnly(['description', 'updatedAt']) ||
+                        // System/Worker update status (assuming worker uses service account or impersonation, 
+                        // but here we allow owner to simulate status change if needed or 
+                        // restrict it if only worker should do it)
+                        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+                      );
+    }
+    
+    // Explicit deny for any other path
+    match /test/connection {
+      allow get: if isSignedIn();
+    }
+  }
+}

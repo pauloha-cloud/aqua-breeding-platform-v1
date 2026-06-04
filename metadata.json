@@ -1,0 +1,8 @@
+{
+  "name": "Remix: aqua-breeding-platform",
+  "description": "B2B SaaS for animal genetic evaluation using Mixed Linear Models (MME), real-time R engine processing, and AI-powered executive insights.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
